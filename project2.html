@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Traffic Management Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .signal-status {
+      font-size: 1.5rem;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    .green { background: #28a745; color: white; }
+    .red { background: #dc3545; color: white; }
+    .countdown {
+      font-size: 2rem;
+      margin-top: 10px;
+      color: #333;
+    }
+    .buttons {
+      margin-top: 15px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-green { background: #28a745; color: white; }
+    .btn-red { background: #dc3545; color: white; }
+    .btn-time { background: #007bff; color: white; }
+    .alert {
+      background: #ffc107;
+      color: #333;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: bold;
+      display: none;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚦 Smart Traffic Management Dashboard</h1>
+
+  <div id="dashboard" class="dashboard"></div>
+
+  <!-- Manual Override -->
+  <div class="card" style="margin-top: 30px;">
+    <h2>Manual Override</h2>
+    <p>Select an area to override:</p>
+    <select id="areaSelect"></select>
+    <div class="buttons">
+      <button class="btn-green" onclick="setSignal('GREEN')">Set Green</button>
+      <button class="btn-red" onclick="setSignal('RED')">Set Red</button>
+    </div>
+    <p>Modify Cycle Time (seconds):</p>
+    <input type="number" id="timeInput" placeholder="Enter seconds" min="5" style="padding:5px;">
+    <button class="btn-time" onclick="setCycleTime()">Update Time</button>
+    <p id="overrideMsg"></p>
+  </div>
+
+  <div id="alertBox" class="alert"></div>
+
+  <script>
+    // List of areas
+    let areas = [
+      { name: "North Junction", vehicles: 0, isGreen: true, countdown: 30, defaultCycleTime: 30, manualOverride: false },
+      { name: "South Junction", vehicles: 0, isGreen: false, countdown: 20, defaultCycleTime: 20, manualOverride: false },
+      { name: "East Junction", vehicles: 0, isGreen: true, countdown: 25, defaultCycleTime: 25, manualOverride: false },
+      { name: "West Junction", vehicles: 0, isGreen: false, countdown: 15, defaultCycleTime: 15, manualOverride: false }
+    ];
+
+    function renderDashboard() {
+      const dashboard = document.getElementById("dashboard");
+      dashboard.innerHTML = "";
+
+      areas.forEach((area) => {
+        const cardHTML = `
+          <div class="card">
+            <h2>${area.name}</h2>
+            <p><strong>Vehicles Count:</strong> ${area.vehicles}</p>
+            <div class="signal-status ${area.isGreen ? "green" : "red"}">
+              ${area.isGreen ? "GREEN" : "RED"}
+            </div>
+            <div class="countdown">${area.countdown}</div>
+          </div>
+        `;
+        dashboard.innerHTML += cardHTML;
+      });
+    }
+
+    function updateDashboard() {
+      let alertMsg = "";
+      areas.forEach(area => {
+        area.vehicles = Math.floor(Math.random() * 100); // random vehicle count
+        area.countdown--;
+
+        if (area.countdown < 0) {
+          // Toggle unless it was just set manually for this cycle
+          if (!area.manualOverride) {
+            area.isGreen = !area.isGreen;
+          }
+          // Reset countdown to default
+          area.countdown = area.defaultCycleTime;
+          // Clear manual override after one cycle
+          area.manualOverride = false;
+        }
+
+        // Check congestion
+        if (area.vehicles > 80) {
+          alertMsg += 'High congestion at ${area.name} (${area.vehicles} vehicles)\n';
+        }
+      });
+
+      renderDashboard();
+
+      // Show alerts if any
+      const alertBox = document.getElementById("alertBox");
+      if (alertMsg) {
+        alertBox.style.display = "block";
+        alertBox.innerText = alertMsg;
+      } else {
+        alertBox.style.display = "none";
+      }
+    }
+
+    function setSignal(color) {
+      const areaName = document.getElementById("areaSelect").value;
+      const area = areas.find(a => a.name === areaName);
+
+      if (!area) return;
+
+      area.isGreen = (color === "GREEN");
+      area.countdown = area.defaultCycleTime; // restart with default timer
+      area.manualOverride = true;  // active only for this cycle
+
+      const msg = document.getElementById("overrideMsg");
+      msg.innerText = '${area.name} set to ${color} for this cycle';
+      renderDashboard();
+    }
+
+    function setCycleTime() {
+      const areaName = document.getElementById("areaSelect").value;
+      const area = areas.find(a => a.name === areaName);
+      const newTime = parseInt(document.getElementById("timeInput").value);
+
+      if (area && newTime && newTime > 0) {
+        area.countdown = newTime;   // temporary time override
+        area.manualOverride = true; // only for this cycle
+
+        const msg = document.getElementById("overrideMsg");
+        msg.innerText = '${area.name} will run ${newTime} seconds this cycle, then revert.';
+        renderDashboard();
+      }
+    }
+
+    // Populate dropdown
+    function populateDropdown() {
+      const select = document.getElementById("areaSelect");
+      areas.forEach(area => {
+        const option = document.createElement("option");
+        option.value = area.name;
+        option.text = area.name;
+        select.add(option);
+      });
+    }
+
+    // Initialize
+    populateDropdown();
+    renderDashboard();
+    setInterval(updateDashboard, 1000);
+  </script>
+
+</body>
+</html>
